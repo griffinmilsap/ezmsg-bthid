@@ -9,6 +9,7 @@ from dbus_next.aio.message_bus import MessageBus
 from dbus_next.constants import BusType
 from dbus_next.signature import Variant
 
+from .hid import REPORT_DESC, read_report
 
 # Bluetooth HID L2CAP ports
 # - defined by bluetooth HID standards
@@ -47,10 +48,10 @@ class BTHIDServer:
     async def handle_tcp_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
         try:
             while True:
-                data = await reader.readline()
+                data = await read_report(reader)
                 if not data: break
                 for queue in self.hid_clients.values():
-                    queue.put_nowait(data[:-1]) # Discard "newline"
+                    queue.put_nowait(data)
         finally:
             writer.close()
     
@@ -64,6 +65,7 @@ class BTHIDServer:
         data_files = files('ezmsg.bthid')
 
         service_record = data_files.joinpath('sdp.xml').read_text()
+        service_record = service_record.replace('$REPORT_DESC', REPORT_DESC.hex().upper())
 
         opts = {
             "Role": Variant('s', "server"),
@@ -150,42 +152,57 @@ async def serve_l2cap_socket(
         task.add_done_callback(all_connection_tasks.remove)
         all_connection_tasks.add(task)
 
+from .hid import write_report
 
-async def test(host: str, port: int, keycode: int = 30, period: float = 1.0) -> None:
-    reader, writer = await asyncio.open_connection(host = host, port = port)
+async def test_keyboard(host: str, port: int, keycode: int, period: float = 1.0) -> None:
+    from .hid import KeyboardMessage
 
-    mod_key = 0
+    _, writer = await asyncio.open_connection(host = host, port = port)
+
     try:
         while True:
             await asyncio.sleep(period)    
-            writer.write(bytes([0xA1, 1, mod_key, 0, keycode, 0, 0, 0, 0, 0, ord('\n')]))
+            write_report(writer, KeyboardMessage(key1 = keycode))
             await writer.drain()
             await asyncio.sleep(0.05)
-            writer.write(bytes([0xA1, 1, 0, 0, 0, 0, 0, 0, 0, 0, ord('\n')]))
+            write_report(writer, KeyboardMessage(key1 = keycode))
+            await writer.drain()
+    finally:
+        writer.close()
+
+
+async def test_mouse(host: str, port: int, gain: float = 5e-2, rate: float = 50.0) -> None:
+    import math
+    import time
+    from .hid import MouseMessage
+
+    _, writer = await asyncio.open_connection(host = host, port = port)
+
+    try:
+        while True:
+            await asyncio.sleep(1.0 / rate)
+            write_report(writer, MouseMessage(
+                rel_y = math.sin(time.time()) * gain,
+                rel_x = math.cos(time.time()) * gain,
+            ))
             await writer.drain()
 
-            buttons = 0
-            relx = 10
-            rely = 5
-            wheel = 0
-
-            writer.write(bytes([0xA1, 2, buttons, relx, rely, wheel, 0, 0, ord('\n')]))
-            await writer.drain()
     finally:
         writer.close()
 
 
 async def main() -> None:
 
-    host = 'localhost'
-    port = 6789
+    from .hid import Keycodes
+
+    host, port = ('localhost', 6789)
 
     server = await BTHIDServer.start(host, port)
 
     await asyncio.gather(
         server.serve_forever(),
-        test(host, port, keycode = 30, period = 1.0),
-        test(host, port, keycode = 31, period = 1.5),
+        test_keyboard(host, port, keycode = Keycodes.KEYCODE_NUMBER_1, period = 1.0),
+        test_mouse(host, port),
         return_exceptions = True
     )
 

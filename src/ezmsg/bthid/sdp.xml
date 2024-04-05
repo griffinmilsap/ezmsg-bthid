@@ -1,114 +1,199 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 
+<!-- Service Discovery Protocol
+There's a LOT to this file but most of it doesn't need to change for Bluetooth HID
+For help deciphering this file, see the following documents and comments below
+
+Assigned Numbers Sec 5.1.18
+https://www.bluetooth.com/specifications/assigned-numbers/
+
+Core Specification Volume 3: Host Part B (CSV3B) Service Discovery Protocol
+https://www.bluetooth.com/specifications/specs/core-specification-5-4/
+
+HID Profile (This is an early revision, current version is behind paywall)
+http://www.yts.rdy.jp/pic/GB002/HID_SPEC_V10.pdf 
+
+See also Page 24 of https://www.silabs.com/documents/public/user-guides/ug212-bt-dual-mode.pdf 
+-->
+
 <record>
-    <attribute id="0x0001">
+    <attribute id="0x0001"> <!-- SVCLASS_ID_LIST CSV3B-5.1.2 -->
         <sequence>
-            <uuid value="0x1124" />
+            <uuid value="0x1124" /> <!-- HID_SVCLASS_ID (Assigned Numbers sec 5.1.18) -->
         </sequence>
     </attribute>
-    <attribute id="0x0004">
+    <attribute id="0x0004"> <!-- SDP_ATTR_PROTO_DESC_LIST CSV3B-5.1.5 -->
         <sequence>
             <sequence>
-                <uuid value="0x0100" />
-                <uint16 value="0x0011" />
+                <uuid value="0x0100" /> <!-- L2CAP_UUID -->
+                <uint16 value="0x0011" /> <!-- HID Control Protocol (Assigned Numbers sec 2.5 PSMs) -->
             </sequence>
             <sequence>
-                <uuid value="0x0011" />
-            </sequence>
-        </sequence>
-    </attribute>
-    <attribute id="0x0005">
-        <sequence>
-            <uuid value="0x1002" />
-        </sequence>
-    </attribute>
-    <attribute id="0x0006">
-        <sequence>
-            <uint16 value="0x656e" />
-            <uint16 value="0x006a" />
-            <uint16 value="0x0100" />
-        </sequence>
-    </attribute>
-    <attribute id="0x0009">
-        <sequence>
-            <sequence>
-                <uuid value="0x1124" />
-                <uint16 value="0x0100" />
+                <uuid value="0x0011" /> <!-- Protocol Identifier's UUID -->
             </sequence>
         </sequence>
     </attribute>
-    <attribute id="0x000d">
+    <attribute id="0x0005"> <!-- SDP_ATTR_BROWSE_GRP_LIST CSV3B-5.1.7 -->
+        <sequence>
+            <uuid value="0x1002" /> <!-- TOP LEVEL PublicBrowseRoot CSV3B-5.1.7 -->
+        </sequence>
+    </attribute>
+    <attribute id="0x0006"> <!-- SDP_LANG_BASE_ATTR_ID_LIST CSV3B-5.1.8 -->
+        <sequence>
+            <uint16 value="0x656e" /> <!-- EN (English) Natural Language -->
+            <uint16 value="0x006a" /> <!-- UTF-8 Character Encoding -->
+            <uint16 value="0x0100" /> <!-- Defines PrimaryLanguageBaseID = 0 -->
+        </sequence>
+    </attribute>
+    <attribute id="0x0009"> <!-- SDP_ATTR_PFILE_DESC_LIST CSV3B-5.1.11 -->
+        <sequence>
+            <sequence>
+                <uuid value="0x1124" /> <!-- HID_SVCLASS_ID (Assigned Numbers sec 5.1.18) -->
+                <uint16 value="0x0100" /> <!-- Base Attribute ID in service record -->
+            </sequence>
+        </sequence>
+    </attribute>
+    <attribute id="0x000d"> <!-- SDP_ATTR_ADD_PROTO_DESC_LIST CSV3B-5.1.6 -->
+        <!-- 
+            This section defines the L2CAP ports that will be used for HID_Control and HID_Interrupt
+            For HID, these need to be ports 17 (0x0011) and 19 (0x0013) respectively.
+            These low numbered ports require superuser to bind, and even if you change them here,
+            bluetooth clients tend to ignore these values; instead always connecting on ports 17 and 19 anyway
+        -->
         <sequence>
             <sequence>
                 <sequence>
-                    <uuid value="0x0100" />
-                    <uint16 value="0x0013" />
+                    <uuid value="0x0100" /> <!-- L2CAP_UUID -->
+                    <uint16 value="0x0013" /> <!-- HID_Interrupt (Assigned Numbers sec 2.5 PSMs) -->
                 </sequence>
                 <sequence>
-                    <uuid value="0x0011" />
+                    <uuid value="0x0011" /> <!-- HID Control Protocol (Assigned Numbers sec 2.5 PSMs) -->
                 </sequence>
             </sequence>
         </sequence>
     </attribute>
-    <attribute id="0x0100">
-        <text value="Raspberry Pi Virtual Keyboard" />
+    <attribute id="0x0100"> <!-- SDP_ATTR_SVCNAME_PRIMARY CSV3B-5.1.15 -->
+        <text value="Virtual Keyboard/Mouse" />
     </attribute>
-    <attribute id="0x0101">
-        <text value="USB > BT Keyboard" />
+    <attribute id="0x0101"> <!-- SDP_ATTR_SVCDESC_PRIMARY CSV3B-5.1.16 -->
+        <text value="USB > BT Keyboard/Mouse" />
     </attribute>
-    <attribute id="0x0102">
-        <text value="Raspberry Pi" />
+    <attribute id="0x0102"> <!-- SDP_ATTR_PROVNAME_PRIMARY CSV3B-5.1.16 -->
+        <text value="EZMSG" />
     </attribute>
-    <attribute id="0x0200">
+    <attribute id="0x0200"> <!-- SDP_ATTR_HID_DEVICE_RELEASE_NUMBER (Deprecated) -->
         <uint16 value="0x0100" />
     </attribute>
-    <attribute id="0x0201">
-        <uint16 value="0x0111" />
+    <attribute id="0x0201"> <!-- SDP_ATTR_HID_PARSER_VERSION -->
+        <uint16 value="0x0111" /> <!-- Must be 0x0111 according to Bluetooth HID Spec. DO NOT CHANGE -->
     </attribute>
-    <attribute id="0x0202">
+    <attribute id="0x0202"> <!-- SDP_ATTR_HID_DEVICE_SUBCLASS -->
+        <!--
+            The value of this field must match the bits 2 to 7 in the Bluetooth Class
+            of Device. Bits 0 and 1 must be set to zero.
+            Common values are 0x40 for a keyboard and 0x80 for a pointing device.
+            For a comprehensive list see of values see tables 9-10 (Minor Device
+            Class field - Peripheral Major Class) at 
+            https://www.bluetooth.com/specifications/assigned-numbers/baseband
+
+            NOTE: Even though the default ezmsg-bthid descriptor defines a combination
+            keyboard and pointing device, this value appears to function for most clients
+            and perhaps most clients ignore this value
+        -->
         <uint8 value="0x40" />
     </attribute>
-    <attribute id="0x0203">
-        <uint8 value="0x00" />
+    <attribute id="0x0203"> <!-- SDP_ATTR_HID_COUNTRY_CODE -->
+        <uint8 value="0x00" /> <!-- Non-Localized -->
     </attribute>
-    <attribute id="0x0204">
+    <attribute id="0x0204"> <!-- SDP_ATTR_HID_VIRTUAL_CABLE -->
+        <!--
+            This value indicates whether the HID device should be associated with
+            only one host at a time, like a wired keyboard can be connected to only
+            one computer.
+            Enabling this means your device should never store the pairing
+            information of more than one host at a time
+            * If enabled, your device MUST also support either
+            HIDReconnectInitiate or HIDNormallyConnectable
+
+            As currently implemented, this server is capable of connecting with
+            and controlling multiple HID Hosts at the same time
+        -->
         <boolean value="false" />
     </attribute>
-    <attribute id="0x0205">
-        <boolean value="false" />
+    <attribute id="0x0205"> <!-- SDP_ATTR_HID_RECONNECT_INITIATE -->
+        <!-- 
+            This value indicates whether the HID Device can reconnect to the HID Host 
+            Generally speaking our device will require the host to connect to the device
+            and the server, as currently implemented, is not capable of reaching out to 
+            the host directly to initiate reconnection on its own.
+        -->
+        <boolean value="false" /> <!-- Reconnection not possible -->
     </attribute>
-    <attribute id="0x0206">
+    <attribute id="0x0206"> <!-- SDP_ATTR_HID_DESCRIPTOR_LIST -->
+        <!--
+            This is used to define the actual HID descriptor.
+            value="22" indicates a Report Descriptor
+
+            The descriptors are predefined in the USB HID specification and are not listed in the HIDDescriptorList.
+            The easiest way to create and validate HID descriptor is to use the USB HID Descriptor Tool 
+            (http://www.usb.org/developers/hidpage#HID%20Descriptor%20Tool) 
+            
+            SEE ALSO: https://eleccelerator.com/usbdescreqparser/
+
+            NOTE: SDP appears to only support one HID descriptor per record, even though this is in a sequence
+            One report descriptor containing multiple Usages appears to be valid though.
+            Each usage defines a different report_id, and when you write reports, you can specify the 
+            report_id that the report corresponds to.
+        -->
         <sequence>
             <sequence>
                 <uint8 value="0x22" />
-                <text encoding="hex" value="05010906A1018501A100050719E029E71500250175019508810295017508810195087508150025650507190029658100C0C005010902A10185020901A1000509190129031500250175019503810275059501810105010930093109381581257F750895038106C0C0" />
+                <text encoding="hex" value="$REPORT_DESC" /> <!-- Substituted by server -->
+                <!-- 
+                    If you're here just looking for a canned SDP record for a 
+                    keyboard and relative mouse, here's a good descriptor for you. Just make the substitution above
+                    $REPORT_DESC => 05010906a1018501a100050719e029e71500250175019508810295017508810195087508150025650507190029658100c0c005010902a10185020901a1000509190129031500250175019503810275059501810105010930093109381581257f750895038106c0c0    
+                -->
             </sequence>
         </sequence>
     </attribute>
-    <attribute id="0x0207">
+    <attribute id="0x0207"> <!-- SDP_ATTR_HID_LANG_ID_BASE_LIST -->
         <sequence>
             <sequence>
-                <uint16 value="0x0409" />
-                <uint16 value="0x0100" />
+                <uint16 value="0x0409" /> <!-- EN-US -->
+                <uint16 value="0x0100" /> <!-- Bluetooth String Offset -->
             </sequence>
         </sequence>
     </attribute>
-    <attribute id="0x020b">
+    <attribute id="0x020b"> <!-- SDP_ATTR_HID_PROFILE_VERSION -->
         <uint16 value="0x0100" />
     </attribute>
-    <attribute id="0x020c">
+    <attribute id="0x020c"> <!-- SDP_ATTR_HID_SUPERVISION_TIMEOUT -->
         <uint16 value="0x0c80" />
     </attribute>
-    <attribute id="0x020d">
+    <attribute id="0x020d"> <!-- SDP_ATTR_HID_NORMALLY_CONNECTABLE -->
+        <!-- 
+            Indicates whether the device normally accepts incoming connections
+            from the Host. Generally for battery-powered devices this should be
+            false, because scanning for paging consumes battery power.
+            This device however implements a normally connectable server
+        -->
         <boolean value="true" />
     </attribute>
-    <attribute id="0x020e">
+    <attribute id="0x020e"> <!-- SDP_ATTR_HID_BOOT_DEVICE -->
+        <!-- 	
+            Indicates whether the HID device implements either the Boot Keyboard
+            or Boot Mouse, or both. This is mandatory to support for keyboards
+            and mice devices.
+
+            NOTE: Apparently its less mandatory than anybody thought.
+        -->
         <boolean value="false" />
     </attribute>
-    <attribute id="0x020f">
+    <attribute id="0x020f"> <!-- HIDSSRHostMaxLatency -->
         <uint16 value="0x0640" />
     </attribute>
-    <attribute id="0x0210">
+    <attribute id="0x0210"> <!-- HIDSSRHostMinTimeout -->
         <uint16 value="0x0320" />
     </attribute>
 </record>
