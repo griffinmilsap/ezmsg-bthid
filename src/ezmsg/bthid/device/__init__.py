@@ -3,6 +3,7 @@ from .hid import HID
 
 from .keyboard import Keyboard
 from .mouse import Mouse
+from .touch import Touch
 
 
 DEVICE_CLASSES: typing.List[type[HID]] = [

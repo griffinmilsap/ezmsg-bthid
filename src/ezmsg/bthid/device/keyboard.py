@@ -2,15 +2,18 @@ from dataclasses import dataclass
 
 from .hid import HID, HIDMessage
 
+# This report ID cannot conflict with any other devices
+KEYBOARD_ID = 0x01 
+
 class Keyboard(HID):
+    """ Generic Keyboard with Numpad """
 
     REPORT_DESCRIPTION = bytes([
 
-        # Keyboard Descriptor Report ID 1
         0x05, 0x01,        # Usage Page (Generic Desktop Ctrls)
         0x09, 0x06,        # Usage (Keyboard)
         0xA1, 0x01,        # Collection (Application)
-        0x85, 0x01,        #   Report ID (1)
+        0x85, KEYBOARD_ID, #   Report ID (1)
         0xA1, 0x00,        #   Collection (Physical)
         0x05, 0x07,        #     Usage Page (Kbrd/Keypad)
         0x19, 0xE0,        #     Usage Minimum (0xE0)
@@ -190,7 +193,7 @@ class Keyboard(HID):
 
         @property
         def report_id(self) -> int:
-            return 1
+            return KEYBOARD_ID
 
         @property
         def payload(self) -> bytes:

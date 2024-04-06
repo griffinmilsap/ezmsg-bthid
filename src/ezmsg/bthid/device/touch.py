@@ -6,16 +6,16 @@ from ..util import float_to_signed_bytes
 from .hid import HID, HIDMessage
 
 # This report ID cannot conflict with any other devices
-MOUSE_ID = 0x02
+TOUCH_ID = 0x03
 
-class Mouse(HID):
-    """ Relative movement pointer (aka. a mouse) with two buttons."""
+class Touch(HID):
+    """ TODO: Absolute movement pointer (single-touch digitizer)"""
     REPORT_DESCRIPTION = bytes([
 
         0x05, 0x01,        # Usage Page (Generic Desktop Ctrls)
         0x09, 0x02,        # Usage (Mouse)
         0xA1, 0x01,        # Collection (Application)
-        0x85, MOUSE_ID,    #   Report ID (2)
+        0x85, TOUCH_ID,    #   Report ID (2)
         0x09, 0x01,        #   Usage (Pointer)
         0xA1, 0x00,        #   Collection (Physical)
         0x05, 0x09,        #     Usage Page (Button)
@@ -57,7 +57,7 @@ class Mouse(HID):
 
         @property
         def report_id(self) -> int:
-            return MOUSE_ID
+            return TOUCH_ID
 
         @property
         def payload(self) -> bytes:

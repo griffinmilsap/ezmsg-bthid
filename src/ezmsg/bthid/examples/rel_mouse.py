@@ -1,23 +1,21 @@
 import math
 import time
-import typing
 import asyncio
 
-from pathlib import Path
-
 from ..device import Mouse
-from ..config import BTHIDConfig, CONFIG_PATH
+from ..config import BTHIDConfig
 
 # This example shows how to send messages to the device without invoking ezmsg
 
 class Args:
-    config: typing.Optional[Path]
-    gain: float = 5e-2
-    rate: float = 50.0
+    host: str
+    port: int
+    gain: float
+    rate: float
 
 async def rel_mouse(args: type[Args]) -> None:
 
-    writer = await BTHIDConfig(args.config).connect()
+    _, writer = await asyncio.open_connection(args.host, args.port)
 
     try:
         while True:
@@ -38,21 +36,28 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'relative cursor movement example')
 
     parser.add_argument(
-        '--config', '-c',
-        type = lambda x: Path(x),
-        default = None,
-        help = f'config file for ezmsg-bthid settings. default: {CONFIG_PATH}'
+        '--host',
+        type = str,
+        default = BTHIDConfig.DEFAULT_HOST,
+        help = f'hostname for ezmsg-bthid daemon. default: {BTHIDConfig.DEFAULT_HOST}'
     )
 
     parser.add_argument(
-        '--gain', '-g',
+        '--port',
+        type = int,
+        default = BTHIDConfig.DEFAULT_PORT,
+        help = f'port for ezmsg-bthid daemon. default: {BTHIDConfig.DEFAULT_PORT}'
+    )
+
+    parser.add_argument(
+        '--gain',
         type = float,
         default = 5e-2,
         help = 'magnitude of mouse movements',
     )
 
     parser.add_argument(
-        '--rate', '-r',
+        '--rate',
         type = float,
         default = 50.0,
         help = 'hid report rate',

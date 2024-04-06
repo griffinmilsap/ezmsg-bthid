@@ -1,13 +1,11 @@
 import asyncio
 import typing
 
-from pathlib import Path
-
 import ezmsg.core as ez
 
 from ezmsg.bthid.device import Keyboard
 
-# This example uses ezmsg units to type messages
+# This example uses an ezmsg unit to type messages
 
 class GhostWriterSettings(ez.Settings):
     message: str
@@ -41,16 +39,19 @@ class GhostWriter(ez.Unit):
                 control_keys |= Keyboard.MODIFIER_LEFT_SHIFT
             
             yield self.OUTPUT, Keyboard.Message(
-                control_keys = control_keys, 
-                hid_keycode = keycode
+                mod_keys = control_keys, 
+                key1 = keycode
             )
+
+            yield self.OUTPUT, Keyboard.Message() # Release keys
 
             await asyncio.sleep(1.0 / self.SETTINGS.pub_rate)
         
         yield self.OUTPUT, Keyboard.Message(
-            control_keys = 0x00,
-            hid_keycode = Keyboard.KEYCODE_ENTER
+            key1 = Keyboard.KEYCODE_ENTER
         )
+
+        yield self.OUTPUT, Keyboard.Message() # Release key
 
         await asyncio.sleep(1.0 / self.SETTINGS.pub_rate)
 
@@ -60,16 +61,23 @@ if __name__ == '__main__':
 
     import argparse 
 
-    from ezmsg.bthid.config import CONFIG_PATH
+    from ezmsg.bthid.config import BTHIDConfig
     from ezmsg.bthid.hidoutput import HIDOutput, HIDOutputSettings
 
     parser = argparse.ArgumentParser(description = 'Keyboard typing demo')
 
     parser.add_argument(
-        '--config', '-c',
-        type = lambda x: Path(x),
-        default = None,
-        help = f'config file for ezmsg-bthid settings. default: {CONFIG_PATH}'
+        '--host',
+        type = str,
+        default = BTHIDConfig.DEFAULT_HOST,
+        help = f'hostname for ezmsg-bthid daemon. default: {BTHIDConfig.DEFAULT_HOST}'
+    )
+
+    parser.add_argument(
+        '--port',
+        type = int,
+        default = BTHIDConfig.DEFAULT_PORT,
+        help = f'port for ezmsg-bthid daemon. default: {BTHIDConfig.DEFAULT_PORT}'
     )
 
     parser.add_argument(
@@ -80,7 +88,8 @@ if __name__ == '__main__':
     )
 
     class Args:
-        config: typing.Optional[Path]
+        host: str
+        port: int 
         message: str
 
     args = parser.parse_args(namespace = Args)
@@ -93,7 +102,8 @@ if __name__ == '__main__':
 
     hid_output = HIDOutput(
         HIDOutputSettings(
-            config_path = args.config
+            host = args.host,
+            port = args.port
         )
     )
 
