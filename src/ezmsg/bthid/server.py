@@ -17,6 +17,17 @@ from .config import BTHIDConfig
 
 logger = logging.getLogger(__name__)
 
+handler = logging.StreamHandler()
+formatter = logging.Formatter(
+    "%(asctime)s.%(msecs)03d - pid: %(process)d - %(threadName)s "
+    + "- %(levelname)s - %(funcName)s: %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+
+handler.setFormatter(formatter)
+logger.addHandler(handler)
+logger.setLevel(logging.INFO)
+
 
 class BTHIDServer:
     """ This is the ezmsg-bthid daemon server.  It:
@@ -50,6 +61,7 @@ class BTHIDServer:
         host, port = config.server_addr
         server = await asyncio.start_server(hid_server.handle_tcp_client, host = host, port = port)
         hid_server.tcp_server = loop.create_task(server.serve_forever(), name = 'bthid_tcp_server')
+        logger.info(f'ezmsg-bthid daemon listening on {host}:{port}/tcp')
         return hid_server
 
     async def handle_tcp_client(self, reader: asyncio.StreamReader, writer: asyncio.StreamWriter) -> None:
@@ -133,8 +145,8 @@ class BTHIDServer:
         except ConnectionResetError:
             pass
         finally:
-            logger.info(f'Bluetooth client disonnected: {info=}')
             interrupt.close()
+    
 
 ConnectionCallbackType = typing.Callable[[socket.socket,typing.Tuple[str, int]], typing.Coroutine[None, None, None]]
 
