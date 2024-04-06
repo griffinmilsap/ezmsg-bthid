@@ -53,7 +53,3 @@ class BTHIDConfig:
     def bluetooth_profile(self) -> str:
         return self.parser.get('bluetooth', 'profile', fallback = BTHIDConfig.DEFAULT_PROFILE)
     
-    async def connect(self) -> asyncio.StreamWriter:
-        host, port = self.server_addr
-        _, writer = await asyncio.open_connection(host = host, port = port)
-        return writer
