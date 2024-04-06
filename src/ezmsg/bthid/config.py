@@ -53,3 +53,9 @@ class BTHIDConfig:
     def bluetooth_profile(self) -> str:
         return self.parser.get('bluetooth', 'profile', fallback = BTHIDConfig.DEFAULT_PROFILE)
     
+    DEFAULT_AGENT = "/bluez/ezmsg/agent"
+
+    @property
+    def bluetooth_agent(self) -> str:
+        return self.parser.get('bluetooth', 'agent', fallback = BTHIDConfig.DEFAULT_AGENT)
+    

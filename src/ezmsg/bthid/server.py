@@ -9,6 +9,7 @@ from importlib.resources import files
 from dbus_next.aio.message_bus import MessageBus
 from dbus_next.constants import BusType
 from dbus_next.signature import Variant
+from dbus_next.service import ServiceInterface, method
 
 from .device import REPORT_DESCRIPTION
 from .device.hid import read_report
@@ -29,12 +30,60 @@ logger.addHandler(handler)
 logger.setLevel(logging.INFO)
 
 
+class BTHIDAgent(ServiceInterface):
+    """ This dbus Service Interface handles replying "yes" to incoming pairing requests """
+
+    @method()
+    async def Release(self):
+        logger.info("Agent: Release -- Unregistered")
+
+    @method()
+    async def RequestPinCode(self, device: 'o') -> 's': # type: ignore
+        # Return a PIN code here; '0000' is a placeholder
+        pin = "0000"
+        logger.info(f"Agent: Pin Code Requested. Providing {pin}")
+        return pin
+
+    @method()
+    async def DisplayPinCode(self, device: 'o', pincode: 's'): # type: ignore
+        logger.info(f"Agent: Pin Code for {device}: {pincode}")
+
+    @method()
+    async def RequestPasskey(self, device: 'o') -> 'u': # type: ignore
+        passkey = 123456
+        logger.info(f"Agent: Passkey Requested. Providing {passkey}")
+        return passkey
+
+    @method()
+    async def DisplayPasskey(self, device: 'o', passkey: 'u', entered: 'q'): # type: ignore
+        logger.info(f"Agent: Passkey for {device}: {passkey}, entered: {entered}")
+
+    @method()
+    async def RequestConfirmation(self, device: 'o', passkey: 'u'): # type: ignore
+        logger.info(f"Agent: Auto-Confirm passkey for {device}: {passkey} -- YES")
+        # Automatically confirm without additional action
+
+    @method()
+    async def RequestAuthorization(self, device: 'o'): # type: ignore
+        # Automatically authorize without additional action
+        logger.info(f"Agent: Authorization requested; Authorizing")
+
+    @method()
+    async def AuthorizeService(self, device: 'o', uuid: 's'): # type: ignore
+        # Automatically authorize the service without additional action
+        logger.info(f"Agent: Service authorization requested; Authorizing")
+
+    @method()
+    async def Cancel(self):
+        logger.info(f"Agent: Cancelled")
+
+
 class BTHIDServer:
     """ This is the ezmsg-bthid daemon server.  It:
     * uses dbus to create a bluetooth profile advertising a HID SDP record
     * binds Bluetooth L2CAP HID ports 0x0011 (control) and 0x0013 (interrupt) (which requires root)
     * exposes the interrupt ports on a tcp port that local (or even remote) clients can connect to
-    * TODO: handles incoming pairing requests with a bluez agent via dbus
+    * handles incoming pairing requests with a bluez agent via dbus
     * TODO: makes the bluetooth adapter discoverable?
     """
 
@@ -105,8 +154,21 @@ class BTHIDServer:
         introspection = await bus.introspect("org.bluez", "/org/bluez/hci0")
         hci0 = bus.get_proxy_object("org.bluez", "/org/bluez/hci0", introspection)
         adapter_property = hci0.get_interface("org.freedesktop.DBus.Properties")
-
         address = await adapter_property.call_get("org.bluez.Adapter1", "Address") # type: ignore
+
+        # Register a dbus agent to handle automatic pairing
+        agent = BTHIDAgent('org.bluez.Agent1')
+        bus.export(self.config.bluetooth_agent, agent)
+
+        introspection = await bus.introspect("org.bluez", "/org/bluez")
+        bluez = bus.get_proxy_object("org.bluez", "/org/bluez", introspection)
+        agent_manager = bluez.get_interface("org.bluez.AgentManager1")
+        
+        # We must tell dbus that we can confirm to pair
+        await agent_manager.call_register_agent(self.config.bluetooth_agent, 'DisplayYesNo') # type: ignore
+        await agent_manager.call_request_default_agent(self.config.bluetooth_agent) # type: ignore
+
+        logger.info(f'Pairing Agent {self.config.bluetooth_agent}: Registered')
 
         # Bind and handle bluetooth HID ports
         async def handle_control_port(conn: socket.socket, _: typing.Tuple[str, int]) -> None:
@@ -125,11 +187,25 @@ class BTHIDServer:
             client_task.add_done_callback(self.hid_clients.pop)
             self.hid_clients[client_task] = queue
 
-        await asyncio.gather(
-            serve_l2cap_socket(handle_control_port, address.value, self.config.P_CTRL, loop = self.loop),
-            serve_l2cap_socket(handle_interrupt_port, address.value, self.config.P_INTR, loop = self.loop),
-            return_exceptions = True
+        control_task = self.loop.create_task(
+            serve_l2cap_socket(
+                handle_control_port, 
+                address.value, 
+                self.config.P_CTRL, 
+                loop = self.loop
+            )
         )
+
+        interrupt_task = self.loop.create_task(
+            serve_l2cap_socket(
+                handle_interrupt_port, 
+                address.value, 
+                self.config.P_INTR, 
+                loop = self.loop
+            )
+        )
+
+        await bus.wait_for_disconnect()
 
     async def handle_hid_client(self, 
         interrupt: socket.socket, 
