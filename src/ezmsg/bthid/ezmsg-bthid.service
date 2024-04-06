@@ -1,0 +1,12 @@
+[Unit]
+Description=Initialize ezmsg-bthid virtual Bluetooth HID daemon
+After=bluetooth.target
+
+[Service]
+Type=exec
+User=root
+ExecStart=python -m ezmsg.bthid.command serve
+StandardOutput=journal
+
+[Install]
+WantedBy=local-fs.target
