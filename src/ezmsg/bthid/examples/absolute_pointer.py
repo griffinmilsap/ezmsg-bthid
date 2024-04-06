@@ -31,8 +31,8 @@ class TouchMessageGenerator(ez.Unit):
             cpx = np.exp(w * 1.0j) * mag
             yield self.OUTPUT_HID, Touch.Message(
                 touch = 0x02,
-                absolute_x = (cpx.real + 1.0) / 2.0,
-                absolute_y = (cpx.imag + 1.0) / 2.0
+                abs_x = (cpx.real + 1.0) / 2.0,
+                abs_y = (cpx.imag + 1.0) / 2.0
             )
 
 if __name__ == '__main__':
@@ -45,16 +45,16 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description = 'Keyboard typing demo')
 
     parser.add_argument(
-        '--host', '-h',
+        '--host',
         type = str,
         default = BTHIDConfig.DEFAULT_HOST,
         help = f'hostname for ezmsg-bthid daemon. default: {BTHIDConfig.DEFAULT_HOST}'
     )
 
     parser.add_argument(
-        '--port', '-p',
+        '--port',
         type = int,
-        default = BTHIDConfig.DEFAULT_HOST,
+        default = BTHIDConfig.DEFAULT_PORT,
         help = f'port for ezmsg-bthid daemon. default: {BTHIDConfig.DEFAULT_PORT}'
     )
 

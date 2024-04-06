@@ -13,7 +13,7 @@ class Keyboard(HID):
         0x05, 0x01,        # Usage Page (Generic Desktop Ctrls)
         0x09, 0x06,        # Usage (Keyboard)
         0xA1, 0x01,        # Collection (Application)
-        0x85, KEYBOARD_ID, #   Report ID (1)
+        0x85, KEYBOARD_ID, #   Report ID
         0xA1, 0x00,        #   Collection (Physical)
         0x05, 0x07,        #     Usage Page (Kbrd/Keypad)
         0x19, 0xE0,        #     Usage Minimum (0xE0)

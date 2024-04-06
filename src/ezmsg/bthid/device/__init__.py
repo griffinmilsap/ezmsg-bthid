@@ -8,7 +8,8 @@ from .touch import Touch
 
 DEVICE_CLASSES: typing.List[type[HID]] = [
     Keyboard,
-    Mouse
+    Mouse,
+    Touch
 ]
 
 REPORT_DESCRIPTION = b''.join([d.REPORT_DESCRIPTION for d in DEVICE_CLASSES])
