@@ -156,6 +156,13 @@ class BTHIDServer:
         adapter_property = hci0.get_interface("org.freedesktop.DBus.Properties")
         address = await adapter_property.call_get("org.bluez.Adapter1", "Address") # type: ignore
 
+        # Make sure adapter is discoverable and pairable forever
+        # await adapter_property.call_set("org.bluez.Adapter1", "Powered", Variant('b', True)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "DiscoverableTimeout", Variant('u', 0)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "PairableTimeout", Variant('u', 0)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "Pairable", Variant('b', True)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "Discoverable", Variant('b', True)) # type: ignore
+
         # Register a dbus agent to handle automatic pairing
         agent = BTHIDAgent('org.bluez.Agent1')
         bus.export(self.config.bluetooth_agent, agent)

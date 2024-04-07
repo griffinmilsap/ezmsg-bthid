@@ -90,18 +90,17 @@ ez.run(
     # reboot
     ```
 
-Note that in the script above, ezmsg-gadget is installed to a special virtual environment in `/opt`.  This is because `ezmsg-bthid serve` must be executed as `root`, and the `systemd` service files that the installer places involve running code from `ezmsg-bthid` _as root during boot_. 
+Note that in the script above, ezmsg-bthid is installed to a special virtual environment in `/opt`.  This is because `ezmsg-bthid serve` must be executed as `root`, and the `systemd` service files that the installer places involve running code from `ezmsg-bthid` _as root during boot_. 
 
 ## Uninstall
 ```
-sudo /opt/ezmsg-gadget/bin/ezmsg-gadget uninstall
+sudo /opt/ezmsg-bthid/bin/ezmsg-bthid uninstall
 ```
 
 # Pairing
-Setting up a Bluetooth connection between the server and a device you want to control using these virtual HID devices can be a little fiddly.  
+You will need to pair your client device with the ezmsg-bthid server before you can successfully control the client with virtual HID instruments.  The ezmsg-bthid server comes with a pairing agent that should simplify this process, but on the off chance it doesn't work as advertised, the following instructions may help 
 
-1. Make sure the `ezmsg-bthid` daemon service is up and running.  
-    `sudo systemctl status ezmsg-bthid.service`
+1. Make sure the `ezmsg-bthid` daemon service is up and running.  You can check with`sudo systemctl status ezmsg-bthid.service`. It turns out most clients only check what the server's capabilities are once on pairing, if you make changes to the server, you'll need to forget the device and re-pair
 2. Run `bluetoothctl` on the same machine that your service is running on and enter the following commands which will cause your Bluetooth adapter to be discoverable under the device's hostname for 3 minutes:  
     `default-agent`  
     `discoverable on`
@@ -151,7 +150,10 @@ The configuration of this module can be done using `/etc/ezmsg-bthid.conf` which
 # https://www.bluetooth.com/specifications/assigned-numbers/service-discovery
 # At the very least, the first 4 octets should remain 00001124
 # uuid = 00001124-0000-1000-8000-00805f9b34fb
+
+# Also probably never need to mess with these
 # profile = /bluez/ezmsg/bthid
+# agent = /bluez/ezmsg/agent
 
 # any files in an associated *.d directory will also be loaded
 
