@@ -1,23 +1,22 @@
 # ezmsg-bthid
 __Griffin Milsap 2024__  
 
-Virtual Bluetooth HID device outputs for ezmsg!
+Virtual Bluetooth HID device outputs for `ezmsg`!
 
-* _Borrows heavily from [TinyPilot](https://github.com/tiny-pilot/tinypilot) -- Thank you!_  
-* _HID inspiration from [Elmue at Codeproject](https://www.codeproject.com/Articles/1001891/A-USB-HID-Keyboard-Mouse-Touchscreen-emulator-with)_
 * _Modernized Bluetooth dbus implementation from [msm](https://tailcall.net/posts/bluetooth-keyboard/#fnref:1)_
+* _Digitizer HID descriptor from [Elmue at Codeproject](https://www.codeproject.com/Articles/1001891/A-USB-HID-Keyboard-Mouse-Touchscreen-emulator-with)_
 
 # Purpose
-Sometimes we want the capability to control other devices from an `ezmsg` system, and this module primarily exists to serve that purpose.  Installing this module onto a Raspberry Pi enables us to control virtual pointer and keyboards attached to any device via bluetooth with `ezmsg`.  It does this by using creating a Bluetooth HID profile/server and provides HID (Human Interface Device) compliant device descriptors.
+Sometimes we want the capability to control other devices from an `ezmsg` system, and this module primarily exists to serve that purpose.  Installing this module onto a Linux machine (Raspberry Pi) enables us to control virtual pointer and keyboards attached to any device via Bluetooth with `ezmsg`.  It does this by using creating a Bluetooth HID profile/server and provides HID (Human Interface Device) compliant device descriptors.
 
 The current implementation comes with the following HID device descriptors that you can use to inject events on client devices:
 * 2-button + scroll wheel relative-movement pointer (aka. a mouse)
 * Standard un-localized keyboard with numpad
 * Absolute-positioning pointer (touch screen/digitizer)
 
-The meat of this module is the server daemon that binds the bluetooth HID ports (as root) and forwards the interrupt port to a configurable tcp port that unpriveliged users can connect to and send reports to.  This port can even be exposed to other clients on the network -- for example, if you wanted to run this on a Raspberry Pi ZeroW and forward Bluetooth HID traffic from other clients on the same network.
+The meat of this module is the server daemon that binds the Bluetooth HID ports (as root) and forwards the interrupt port to a configurable tcp port that unpriveliged users can connect to and send reports to.  This port can even be exposed to other clients on the network -- for example, if you wanted to run this on a Raspberry Pi ZeroW and forward Bluetooth HID traffic from other clients on the same network.
 
-Once the server is up and running, `ezmsg-bthid` provides an `HIDOutput` unit that connects to the daemon and a set of HID message dataclasses that create properly formatted reports for the connected bluetooth clients, based on the advertised descriptors.
+Once the server is up and running, `ezmsg-bthid` provides an `HIDOutput` unit that connects to the daemon and a set of HID message dataclasses that create properly formatted reports for the connected Bluetooth clients, based on the advertised descriptors.
 
 ``` python
 
@@ -78,7 +77,16 @@ ez.run(
 
 ## Installation
 
-1. Make sure you disable the Bluetooth input plugin.
+1. Make sure you disable the Bluetooth input plugin.  To do that, edit `/lib/systemd/system/bluetooth.service` as superuser and change the ExecStart line to disable the `input` plugin:
+    ```
+    #ExecStart=/usr/libexec/bluetooth/bluetoothd
+    ExecStart=/usr/libexec/bluetooth/bluetoothd -P input
+    ```
+    Then reload the systemctl daemon to apply the change to the service file and restart the bluetooth daemon
+    ```
+    sudo systemctl daemon-reload
+    sudo systemctl restart bluetooth.service
+    ```
 2. Run the following commands:
     ```
     $ sudo su
@@ -89,27 +97,34 @@ ez.run(
     (ezmsg-bthid) # ezmsg-bthid install -y
     # reboot
     ```
-
-Note that in the script above, ezmsg-bthid is installed to a special virtual environment in `/opt`.  This is because `ezmsg-bthid serve` must be executed as `root`, and the `systemd` service files that the installer places involve running code from `ezmsg-bthid` _as root during boot_. 
+    
+    Note that in the script above, ezmsg-bthid is installed to a special virtual environment in `/opt`.  This is because `ezmsg-bthid serve` must be executed as `root`, and the `systemd` service files that the installer places involve running code from `ezmsg-bthid` _as root during boot_. Running services as root (especially ones that handle ports) comes with a host of caveats and cautions.  _The server could use a good review before deploying this module in production environments._
 
 ## Uninstall
+Assuming the module was installed in the virtual environment in `/opt` as described above, this should do the trick:
 ```
 sudo /opt/ezmsg-bthid/bin/ezmsg-bthid uninstall
 ```
+Additionally: 
+* Revert the changes to `/lib/systemd/system/bluetooth.service` and reload the systemctl daemon and restart `bluetooth.service`
+* Delete the virtual environment: `rm -rf /opt/ezmsg-bthid`
 
 # Pairing
-You will need to pair your client device with the ezmsg-bthid server before you can successfully control the client with virtual HID instruments.  The ezmsg-bthid server comes with a pairing agent that should simplify this process, but on the off chance it doesn't work as advertised, the following instructions may help 
+You will need to pair your client device with the ezmsg-bthid server before you can successfully control the client with virtual HID instruments.  The ezmsg-bthid server comes with a pairing agent that should simplify this process, but on the off chance it doesn't work as advertised, the following instructions may help you troubleshoot
 
-1. Make sure the `ezmsg-bthid` daemon service is up and running.  You can check with`sudo systemctl status ezmsg-bthid.service`. It turns out most clients only check what the server's capabilities are once on pairing, if you make changes to the server, you'll need to forget the device and re-pair
-2. Run `bluetoothctl` on the same machine that your service is running on and enter the following commands which will cause your Bluetooth adapter to be discoverable under the device's hostname for 3 minutes:  
+* Make sure the `ezmsg-bthid` daemon service is up and running.  You can check with`sudo systemctl status ezmsg-bthid.service`. It turns out most clients only check what the server's capabilities are once on pairing, if you make changes to the server, you'll need to forget the device and re-pair
+
+### Manual Pairing
+This shouldn't really be necessary, because the ezmsg-bthid daemon manages its own pairing agent and ensures the device is discoverable, but on the off-chance the bluez dbus API changes again, here's how you can manually pair a client device with the server.
+1. Run `bluetoothctl` on the same machine that your service is running on and enter the following commands which will cause your Bluetooth adapter to be discoverable under the device's hostname for 3 minutes:  
     `default-agent`  
     `discoverable on`
-3. On your client device, pair a new Bluetooth device during the discoverable period.  Again, the device should show up with the hostname of your server as the Bluetooth device name.
-4. Accept pairing information on the client side __and__ on the server side at roughly the same time by typing `yes` in the `bluetoothctl` session once the pairing request comes up
-5. `exit` out of `bluetoothctl`; as long as its up, it'll ask you to re-pair the client device every time it connects.
+2. On your client device, pair a new Bluetooth device during the discoverable period.  Again, the device should show up with the hostname of your server as the Bluetooth device name.
+3. Accept pairing information on the client side __and__ on the server side at roughly the same time by typing `yes` in the `bluetoothctl` session once the pairing request comes up
+4. `exit` out of `bluetoothctl`; as long as its up, it'll ask you to re-pair the client device every time it connects.
 
-## Test HID devices
-The `ezmsg-bthid` module comes with a few built-in examples that make it easy to test out the bluetooth connection.
+## Test HID capabilities
+The `ezmsg-bthid` module comes with a few built-in examples that make it easy to test out the Bluetooth connection.  These examples should also be enlightening and demonstrate how to send properly formatted reports to the server.
 * `python -m ezmsg.bthid.examples.rel_mouse` should move client cursor around in circles
 * `python -m ezmsg.bthid.examples.type_message` should type messages on the client device
 * `python -m ezmsg.bthid.examples.absolute_pointer` should send absolute mouse-move messages to fling the cursor around your screen in a preset spiral pattern
@@ -136,7 +151,7 @@ options:
 ```         
 
 # Configuration
-The configuration of this module can be done using `/etc/ezmsg-bthid.conf` which has the following format:
+The configuration of this module can be done using `/etc/ezmsg-bthid.conf` which has the following format.  Most likely, the only settings you'll want to change in this file are the `[server]` `host` and `port` to meet your needs. 
 ``` ini
 # configuration for ezmsg-bthid daemon
 
