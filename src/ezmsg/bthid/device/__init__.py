@@ -1,5 +1,5 @@
 import typing
-from .hid import HID
+from .hid import HID, HIDMessage
 
 from .keyboard import Keyboard
 from .mouse import Mouse
