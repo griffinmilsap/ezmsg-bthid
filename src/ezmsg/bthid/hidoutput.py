@@ -9,10 +9,12 @@ from .device.hid import HIDMessage
 class HIDOutputSettings(ez.Settings):
     host: str = BTHIDConfig.DEFAULT_HOST
     port: int = BTHIDConfig.DEFAULT_PORT
+    reconnect_timeout: float = 0 # sec; if 0, don't attempt to reconnect
 
 
 class HIDOutputState(ez.State):
     queue: asyncio.Queue[HIDMessage]
+    dead: bool = False
 
 
 class HIDOutput(ez.Unit):
@@ -30,16 +32,19 @@ class HIDOutput(ez.Unit):
 
         while True:
             try:
-                ez.logger.info('(Re)Connecting to ezmsg-bthid daemon...')
                 _, writer = await asyncio.open_connection(
                     host = self.SETTINGS.host, 
                     port = self.SETTINGS.port
                 )
 
             except ConnectionRefusedError:
-                ez.logger.info('ezmsg-bthid daemon not running?')
-                await asyncio.sleep(5.0) # Wait a bit before trying to reconnect
-                continue
+                if self.SETTINGS.reconnect_timeout:
+                    ez.logger.info('Attempting reconnection to ezmsg-bthid daemon...')
+                    await asyncio.sleep(self.SETTINGS.reconnect_timeout)
+                    continue
+                else:
+                    ez.logger.info('ezmsg-bthid daemon not reachable')
+                    break
 
             ez.logger.info('Connected to ezmsg-bthid daemon!')
 
@@ -55,6 +60,10 @@ class HIDOutput(ez.Unit):
             finally:
                 writer.close()
 
+        self.STATE.dead = True
+
     @ez.subscriber(INPUT_HID)
     async def write(self, msg: HIDMessage) -> None:
-        self.STATE.queue.put_nowait(msg)
+        # Don't needlessly buffer messages that won't ever hit the daemon
+        if not self.STATE.dead:
+            self.STATE.queue.put_nowait(msg)
