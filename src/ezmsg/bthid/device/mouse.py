@@ -51,6 +51,11 @@ class Mouse(HID):
         rel_y: float = 0.0 # (-1.0, 1.0)
         wheel: float = 0.0 # (-1.0, 1.0)
 
+        def __post_init__(self) -> None:
+            self.rel_x = max(min(self.rel_x, 1.0), -1.0)
+            self.rel_y = max(min(self.rel_y, 1.0), -1.0)
+            self.wheel = max(min(self.wheel, 1.0), -1.0)
+
         @property
         def buttons(self) -> bytes:
             return _buttons_lut[(self.left_button, self.right_button)]

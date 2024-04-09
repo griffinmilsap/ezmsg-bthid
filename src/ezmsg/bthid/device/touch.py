@@ -58,8 +58,12 @@ class Touch(HID):
     @dataclass
     class Message(HIDMessage):
         touch: int = 0x00 # Individual buttons (3x) [bit0 = up/down, bit1 = in range]
-        abs_x: float = 0.0 # (-1.0, 1.0)
-        abs_y: float = 0.0 # (-1.0, 1.0)
+        abs_x: float = 0.0 # (0.0, 1.0)
+        abs_y: float = 0.0 # (0.0, 1.0)
+
+        def __post_init__(self) -> None:
+            self.abs_x = max(min(self.abs_x, 1.0), 0.0)
+            self.abs_y = max(min(self.abs_y, 1.0), 0.0)
 
         @property
         def report_id(self) -> int:
