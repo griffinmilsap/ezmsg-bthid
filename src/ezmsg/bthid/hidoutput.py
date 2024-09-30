@@ -19,8 +19,8 @@ class HIDOutputState(ez.State):
 
 class HIDOutput(ez.Unit):
 
-    SETTINGS: HIDOutputSettings
-    STATE: HIDOutputState
+    SETTINGS = HIDOutputSettings
+    STATE = HIDOutputState
 
     INPUT_HID = ez.InputStream(HIDMessage)
 
