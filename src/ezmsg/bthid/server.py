@@ -12,7 +12,7 @@ from dbus_next.signature import Variant
 from dbus_next.service import ServiceInterface, method
 
 from .device import REPORT_DESCRIPTION
-from .device.hid import read_report
+from .device.hid import parse_report
 
 from .config import BTHIDConfig
 
@@ -117,10 +117,11 @@ class BTHIDServer:
         """ This is where tcp client reports are received and queued for forwarding to bluetooth interrupt """
         try:
             while True:
-                data = await read_report(reader)
+                data = await reader.readline()
                 if not data: break
+                report = parse_report(data)
                 for queue in self.hid_clients.values():
-                    queue.put_nowait(data)
+                    queue.put_nowait(report)
         finally:
             writer.close()
     

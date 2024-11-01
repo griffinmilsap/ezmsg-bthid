@@ -19,13 +19,12 @@ class HIDMessage(ABC):
         raise NotImplementedError
     
     # Stream encoding: Hex + newline
-    def write(self, writer: asyncio.StreamWriter) -> None:
-        writer.write(self.report.hex().encode() + b'\n')
+    def encode(self) -> bytes:
+        return self.report.hex().encode() + b'\n'
 
 
 # Stream decoding: Hex + newline
-async def read_report(reader: asyncio.StreamReader) -> bytes:
-    report = await reader.readline()
+def decode_report(report: bytes) -> bytes:
     return bytes.fromhex(report.decode()[:-1]) if report else report
 
 

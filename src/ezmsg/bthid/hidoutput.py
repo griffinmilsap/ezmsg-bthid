@@ -52,6 +52,7 @@ class HIDOutput(ez.Unit):
                 while True:
                     msg = await self.STATE.queue.get()
                     msg.write(writer)
+                    writer.write(msg.encode())
                     await writer.drain()
 
             except ConnectionResetError:

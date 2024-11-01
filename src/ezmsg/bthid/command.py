@@ -5,6 +5,7 @@ import asyncio
 from pathlib import Path
 
 from .server import BTHIDServer
+from .server_sync import BTHIDServer as BTHIDServerSync
 from .config import CONFIG_PATH
 from .install import install, uninstall
 
@@ -17,6 +18,11 @@ async def serve(args: type[Args]) -> None:
     assert os.geteuid() == 0, "This won't work without root"
     server = await BTHIDServer.start(args.config)
     await server.serve_forever()
+
+def serve_sync(args: type[Args]) -> None:
+    assert os.geteuid() == 0, "This won't work without root"
+    server = BTHIDServerSync(args.config)
+    server.serve_forever()
 
 def cmdline() -> None:
 
@@ -46,6 +52,8 @@ def cmdline() -> None:
     
     if args.command == 'serve':
         asyncio.run(serve(args))
+    elif args.command == 'serve_sync':
+        asyncio.run(serve_sync(args))
     elif args.command == 'install':
         install(yes = args.yes)
     elif args.command == 'uninstall':
