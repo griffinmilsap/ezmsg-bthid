@@ -5,7 +5,9 @@ import threading
 
 from queue import Queue
 from pathlib import Path
-from dbus_next import MessageBus
+from importlib.resources import files
+
+from dbus_next.aio import MessageBus
 from dbus_next.constants import BusType
 from dbus_next.signature import Variant
 from dbus_next.service import ServiceInterface, method
@@ -82,19 +84,23 @@ class BTHIDServer:
         self.hid_clients = {}
         self.config = BTHIDConfig(config_path)
 
-    def serve_forever(self) -> None:
-        bus = MessageBus(bus_type=BusType.SYSTEM).connect()
+    async def serve_forever(self) -> None:
+        # Use dbus to create the HID bluetooth profile / SDP record
+        bus = await MessageBus(
+            bus_type = BusType.SYSTEM,
+            negotiate_unix_fd = True,
+        ).connect()
 
-        data_files = Path('ezmsg.bthid')
+        data_files = files('ezmsg.bthid')
         service_record = data_files.joinpath('sdp.xml').read_text()
         service_record = service_record.replace('$REPORT_DESC', REPORT_DESCRIPTION.hex().upper())
 
-        introspection = bus.introspect("org.bluez", "/org/bluez")
+        introspection = await bus.introspect("org.bluez", "/org/bluez")
         bluez = bus.get_proxy_object("org.bluez", "/org/bluez", introspection)
         manager = bluez.get_interface("org.bluez.ProfileManager1")
-        manager.call_register_profile(
-            self.config.bluetooth_profile,
-            self.config.bluetooth_uuid,
+        await manager.call_register_profile( # type: ignore
+            self.config.bluetooth_profile, 
+            self.config.bluetooth_uuid, 
             {
                 "Role": Variant('s', "server"),
                 "RequireAuthentication": Variant('b', False),
@@ -102,30 +108,34 @@ class BTHIDServer:
                 "AutoConnect": Variant('b', True),
                 "ServiceRecord": Variant('s', service_record),
             }
-        )
+        ) 
 
-        introspection = bus.introspect("org.bluez", "/org/bluez/hci0")
+        introspection = await bus.introspect("org.bluez", "/org/bluez/hci0")
         hci0 = bus.get_proxy_object("org.bluez", "/org/bluez/hci0", introspection)
         adapter_property = hci0.get_interface("org.freedesktop.DBus.Properties")
-        address = adapter_property.call_get("org.bluez.Adapter1", "Address")
+        address = await adapter_property.call_get("org.bluez.Adapter1", "Address") # type: ignore
 
-        # Set discoverable, pairable options
-        adapter_property.call_set("org.bluez.Adapter1", "DiscoverableTimeout", Variant('u', 0))
-        adapter_property.call_set("org.bluez.Adapter1", "PairableTimeout", Variant('u', 0))
-        adapter_property.call_set("org.bluez.Adapter1", "Pairable", Variant('b', True))
-        adapter_property.call_set("org.bluez.Adapter1", "Discoverable", Variant('b', True))
+        # Make sure adapter is discoverable and pairable forever
+        # await adapter_property.call_set("org.bluez.Adapter1", "Powered", Variant('b', True)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "DiscoverableTimeout", Variant('u', 0)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "PairableTimeout", Variant('u', 0)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "Pairable", Variant('b', True)) # type: ignore
+        await adapter_property.call_set("org.bluez.Adapter1", "Discoverable", Variant('b', True)) # type: ignore
 
-        # Register the agent for pairing
+        # Register a dbus agent to handle automatic pairing
         agent = BTHIDAgent('org.bluez.Agent1')
         bus.export(self.config.bluetooth_agent, agent)
+
+        introspection = await bus.introspect("org.bluez", "/org/bluez")
+        bluez = bus.get_proxy_object("org.bluez", "/org/bluez", introspection)
+        agent_manager = bluez.get_interface("org.bluez.AgentManager1")
         
-        introspection = bus.introspect("org.bluez", "/org/bluez")
-        agent_manager = bus.get_proxy_object("org.bluez", "/org/bluez", introspection).get_interface("org.bluez.AgentManager1")
-        agent_manager.call_register_agent(self.config.bluetooth_agent, 'DisplayYesNo')
-        agent_manager.call_request_default_agent(self.config.bluetooth_agent)
+        # We must tell dbus that we can confirm to pair
+        await agent_manager.call_register_agent(self.config.bluetooth_agent, 'DisplayYesNo') # type: ignore
+        await agent_manager.call_request_default_agent(self.config.bluetooth_agent) # type: ignore
 
         logger.info(f'Pairing Agent {self.config.bluetooth_agent}: Registered')
-
+        
         # Bind Bluetooth HID ports
         control_thread = threading.Thread(
             target=self.serve_l2cap_socket, 
@@ -142,8 +152,17 @@ class BTHIDServer:
         host, port = self.config.server_addr
         tcp_server_socket = socket.create_server((host, port))
         tcp_server_socket.listen()
+
+        tcp_server_thread = threading.Thread(
+            target = self.accept_tcp_clients,
+            args = (tcp_server_socket,)
+        )
+        tcp_server_thread.start()
         logger.info(f'ezmsg-bthid daemon listening on {host}:{port}/tcp')
 
+        await bus.wait_for_disconnect()
+
+    def accept_tcp_clients(self, tcp_server_socket: socket.socket) -> None:
         # Listen for TCP connections
         tcp_clients = []
         while True:

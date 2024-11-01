@@ -19,10 +19,10 @@ async def serve(args: type[Args]) -> None:
     server = await BTHIDServer.start(args.config)
     await server.serve_forever()
 
-def serve_sync(args: type[Args]) -> None:
+async def serve_sync(args: type[Args]) -> None:
     assert os.geteuid() == 0, "This won't work without root"
     server = BTHIDServerSync(args.config)
-    server.serve_forever()
+    await server.serve_forever()
 
 def cmdline() -> None:
 
