@@ -32,7 +32,7 @@ def cmdline() -> None:
 
     parser.add_argument(
         'command',
-        choices = ['serve', 'install', 'uninstall']
+        choices = ['serve', 'install', 'uninstall', 'serve_sync']
     )
 
     parser.add_argument(
