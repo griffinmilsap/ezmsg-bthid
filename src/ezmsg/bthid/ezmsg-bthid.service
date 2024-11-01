@@ -5,6 +5,7 @@ After=bluetooth.target
 [Service]
 Type=exec
 User=root
+Nice=-19
 ExecStart=python -m ezmsg.bthid.command serve
 StandardOutput=journal
 
