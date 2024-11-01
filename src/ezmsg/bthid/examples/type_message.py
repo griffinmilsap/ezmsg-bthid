@@ -12,7 +12,7 @@ class GhostWriterSettings(ez.Settings):
     pub_rate: float = 3 # Hz
 
 class GhostWriter(ez.Unit):
-    SETTINGS: GhostWriterSettings
+    SETTINGS = GhostWriterSettings
 
     OUTPUT = ez.OutputStream(Keyboard.Message)
 

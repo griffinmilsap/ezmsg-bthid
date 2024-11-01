@@ -19,8 +19,8 @@ class TouchMessageGeneratorState(ez.State):
     pub_times: typing.List[float] = field(default_factory = list)
 
 class TouchMessageGenerator(ez.Unit):
-    SETTINGS: TouchMessageGeneratorSettings
-    STATE: TouchMessageGeneratorState
+    SETTINGS = TouchMessageGeneratorSettings
+    STATE = TouchMessageGeneratorState
 
     OUTPUT_HID = ez.OutputStream(Touch.Message, num_buffers = 1)
 
