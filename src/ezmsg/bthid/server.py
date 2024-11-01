@@ -12,7 +12,7 @@ from dbus_next.signature import Variant
 from dbus_next.service import ServiceInterface, method
 
 from .device import REPORT_DESCRIPTION
-from .device.hid import parse_report
+from .device.hid import decode_report
 
 from .config import BTHIDConfig
 
@@ -119,7 +119,7 @@ class BTHIDServer:
             while True:
                 data = await reader.readline()
                 if not data: break
-                report = parse_report(data)
+                report = decode_report(data)
                 for queue in self.hid_clients.values():
                     queue.put_nowait(report)
         finally:
