@@ -51,7 +51,6 @@ class HIDOutput(ez.Unit):
             try:
                 while True:
                     msg = await self.STATE.queue.get()
-                    msg.write(writer)
                     writer.write(msg.encode())
                     await writer.drain()
 
