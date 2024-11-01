@@ -191,7 +191,7 @@ class BTHIDServer:
         sock.bind((address, port))
         sock.listen(1)
 
-        threads = typing.List[threading.Thread]
+        threads: typing.List[threading.Thread] = []
 
         while True:
             conn, info = sock.accept()
@@ -209,7 +209,7 @@ class BTHIDServer:
             conn.close()
 
     def handle_interrupt_port(self, conn: socket.socket, info: typing.Tuple[str, int]) -> None:
-        incoming = Queue()
+        incoming: Queue[bytes] = Queue()
         with self.hid_clients_lock:
             self.hid_clients[conn] = incoming
         try:
