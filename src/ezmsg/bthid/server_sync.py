@@ -75,7 +75,7 @@ class BTHIDAgent(ServiceInterface):
 
 
 class BTHIDServer:
-    hid_clients_lock: typing.Lock
+    hid_clients_lock: threading.Lock
     hid_clients: typing.Dict[socket.socket, Queue[bytes]]
     config: BTHIDConfig
     
